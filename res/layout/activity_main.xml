@@ -1,0 +1,81 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.example.cityweather.MainActivity" >
+	
+    <SearchView
+        android:id="@+id/searchView1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="left|center_vertical"
+        android:queryHint="请输入城市" 
+        >
+       
+    </SearchView>
+     
+    
+    <RelativeLayout 
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        >
+        <TextView 
+            android:id="@+id/city_name"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:gravity="left|center_vertical"
+            android:textSize="20dp"
+            />
+		
+        <TextView 
+            android:id="@+id/cond_view"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_below="@+id/city_name"
+            android:layout_marginTop="80dp"
+            android:gravity="left|center_vertical"
+            android:textSize="20dp"
+            android:paddingLeft="20dp"
+             />
+        <TextView
+            android:id="@+id/temp_view"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_below="@+id/cond_view"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="10dp" 
+            android:gravity="left|center_vertical"
+            android:textSize="20dp"
+            android:paddingLeft="20dp"
+             />
+        <TextView 
+            android:id="@+id/wind_view"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_below="@+id/temp_view"
+            android:layout_marginTop="10dp" 
+            android:gravity="left|center_vertical"
+            android:textSize="20dp"
+            android:paddingLeft="20dp"
+            />
+        <TextView 
+            android:id="@+id/today_forcast"
+            android:layout_width="155dp"
+            android:layout_height="50dp"
+            android:layout_below="@+id/wind_view"
+            />
+        <TextView 
+            android:id="@+id/tomorrow_forcast"
+            android:layout_width="155dp"
+            android:layout_height="50dp"
+            android:layout_below="@+id/wind_view"
+            android:layout_toRightOf="@+id/today_forcast"
+            android:layout_marginLeft="7dp"/>
+        
+    </RelativeLayout>
+    
+    
+
+</LinearLayout>
