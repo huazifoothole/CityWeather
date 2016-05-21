@@ -1,15 +1,19 @@
 package com.example.cityweather;
 
 
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.example.cityweather.db.CityWeatherDB;
 import com.example.cityweather.util.HttpCallbackListener;
 import com.example.cityweather.util.HttpUtil;
+import com.example.cityweather.util.Utility;
 
+import android.R.integer;
 import android.app.Activity;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -17,7 +21,6 @@ import android.util.Log;
 import android.view.Window;
 import android.widget.SearchView;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.SearchView.OnQueryTextListener;
  
  
@@ -33,8 +36,10 @@ public class MainActivity extends Activity  {
 	private TextView windView;
 	private TextView todayView;
 	private TextView tomorowView;
+	private CityWeatherDB cityWeatherDB;
+ 
 	private String weatherAddress = "http://api.heweather.com/x3/weather?cityid=CN101280101&key=b24a8807e904419ea31f3125fab0ca16";
-	 
+	private String allCityIdAddress = "https://api.heweather.com/x3/citylist?search=allchina&key=b24a8807e904419ea31f3125fab0ca16" ;
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -51,15 +56,20 @@ public class MainActivity extends Activity  {
 		todayView = (TextView) findViewById(R.id.today_forcast);
 		tomorowView = (TextView) findViewById(R.id.tomorrow_forcast);
 		
+		cityWeatherDB = CityWeatherDB.getInstance(this);
 		
+		//保存城市ID
+		//saveCitiesId();
+		 
 		seachView.setOnQueryTextListener(new OnQueryTextListener() {
 			
 			@Override
 			public boolean onQueryTextSubmit(String query) {
 				// TODO Auto-generated method stub
 //				Toast.makeText(MainActivity.this, "search", Toast.LENGTH_SHORT).show();
-				queryFromServer(weatherAddress);
 				seachView.setIconified(true);//key_down和key_down会执行两次搜索 加上此句clear搜索框避免
+				String cityId = cityWeatherDB.queryID(query);
+				queryCityWeather(cityId);
 				return true;
 			}
 			
@@ -69,13 +79,12 @@ public class MainActivity extends Activity  {
 				return true;
 			}
 		});
-		 
 	}
 	
-	private void queryFromServer(String address) {
-		
-		//利用回调获取网络返回数据
-		   HttpUtil.sendHttpRequest(address, new HttpCallbackListener() {
+	private void queryCityWeather(String cityId) {
+		String address = "http://api.heweather.com/x3/weather?cityid="+cityId+"&key=b24a8807e904419ea31f3125fab0ca16";
+		HttpUtil.sendHttpRequest(address, new HttpCallbackListener() {
+			
 			@Override
 			public void onFinish(String response) {
 				// TODO Auto-generated method stub
@@ -89,6 +98,26 @@ public class MainActivity extends Activity  {
 			}
 		});
 	}
+	
+	private void saveCitiesId() {
+		HttpUtil.sendHttpRequest(allCityIdAddress, new HttpCallbackListener() {
+			
+			@Override
+			public void onFinish(String response) {
+				
+				  boolean result = Utility.handleCitiesResponse(cityWeatherDB, response);
+				
+			}
+			
+			@Override
+			public void onError(Exception e) {
+				// TODO Auto-generated method stub
+				e.printStackTrace();
+				
+			}
+		});
+	}
+	
 	
 	 
 	private void parseWeatherData(String weatherData){
@@ -124,7 +153,7 @@ public class MainActivity extends Activity  {
 						cloundView.setText(cloudString1);
 						cityNameView.setText(cityString);
 						tempView.setText(String.valueOf(averTemp));
-						windView.setText(wind);
+						windView.setText("风："+wind);
 						String todayForcaString = "今天  "+ todayMaxTemp +"/"+todayMinTemp +"C\n"+wind;
 						todayView.setText(todayForcaString); 
 					}
