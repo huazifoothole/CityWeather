@@ -1,27 +1,30 @@
 package com.example.cityweather;
 
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+
+import android.R.animator;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.os.Handler;
+import android.preference.PreferenceManager;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v4.widget.SwipeRefreshLayout.OnRefreshListener;
+import android.text.TextUtils;
+import android.util.Log;
+import android.view.GestureDetector;
+import android.view.Window;
+import android.widget.SearchView;
+import android.widget.SearchView.OnQueryTextListener;
+import android.widget.TextView;
 
 import com.example.cityweather.db.CityWeatherDB;
+import com.example.cityweather.service.AutoUpdateService;
 import com.example.cityweather.util.HttpCallbackListener;
 import com.example.cityweather.util.HttpUtil;
 import com.example.cityweather.util.Utility;
-
-import android.R.integer;
-import android.app.Activity;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
-import android.os.Bundle;
-import android.text.TextUtils;
-import android.util.Log;
-import android.view.Window;
-import android.widget.SearchView;
-import android.widget.TextView;
-import android.widget.SearchView.OnQueryTextListener;
  
  
  
@@ -37,6 +40,8 @@ public class MainActivity extends Activity  {
 	private TextView todayView;
 	private TextView tomorowView;
 	private CityWeatherDB cityWeatherDB;
+	private GestureDetector mGestureDetector;
+	private SwipeRefreshLayout swipeRefreshLayout;
  
 	private String weatherAddress = "http://api.heweather.com/x3/weather?cityid=CN101280101&key=b24a8807e904419ea31f3125fab0ca16";
 	private String allCityIdAddress = "https://api.heweather.com/x3/citylist?search=allchina&key=b24a8807e904419ea31f3125fab0ca16" ;
@@ -58,17 +63,34 @@ public class MainActivity extends Activity  {
 		
 		cityWeatherDB = CityWeatherDB.getInstance(this);
 		
-		//保存城市ID
-		//saveCitiesId();
+		swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.refresh_layout);
+		swipeRefreshLayout.setColorSchemeResources(android.R.color.holo_blue_bright, android.R.color.holo_green_light,
+                android.R.color.holo_orange_light, android.R.color.holo_red_light);
+//		swipeRefreshLayout.setBackgroundColor(R.color.red);
+		swipeRefreshLayout.setDistanceToTriggerSync(10);
+		swipeRefreshLayout.setSize(SwipeRefreshLayout.LARGE);
+		
+		String mIsIdExist = cityWeatherDB.queryID(this, "北京");
+		if(mIsIdExist.compareTo("CN101280101") == 0){
+			saveCitiesId();
+			Log.d("listenString", "save=");
+		}
+			
+		 
 		 
 		seachView.setOnQueryTextListener(new OnQueryTextListener() {
 			
 			@Override
 			public boolean onQueryTextSubmit(String query) {
 				// TODO Auto-generated method stub
-//				Toast.makeText(MainActivity.this, "search", Toast.LENGTH_SHORT).show();
+				if(!TextUtils.isEmpty(query)){
+					SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+					editor.putString("cityName", query);
+					editor.commit();
+				}
+			
 				seachView.setIconified(true);//key_down和key_down会执行两次搜索 加上此句clear搜索框避免
-				String cityId = cityWeatherDB.queryID(query);
+				String cityId = cityWeatherDB.queryID(MainActivity.this,query);
 				queryCityWeather(cityId);
 				return true;
 			}
@@ -79,8 +101,27 @@ public class MainActivity extends Activity  {
 				return true;
 			}
 		});
+		
+		swipeRefreshLayout.setOnRefreshListener(new OnRefreshListener() {
+			
+			@Override
+			public void onRefresh() {
+				// TODO Auto-generated method stub
+				new Handler().postDelayed(new Runnable() {
+					
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						swipeRefreshLayout.setRefreshing(false);
+						showWeather();
+					}
+				}, 2000);
+				
+			}
+		});
 	}
 	
+ 
 	private void queryCityWeather(String cityId) {
 		String address = "http://api.heweather.com/x3/weather?cityid="+cityId+"&key=b24a8807e904419ea31f3125fab0ca16";
 		HttpUtil.sendHttpRequest(address, new HttpCallbackListener() {
@@ -88,7 +129,18 @@ public class MainActivity extends Activity  {
 			@Override
 			public void onFinish(String response) {
 				// TODO Auto-generated method stub
-				parseWeatherData(response);
+				boolean result = Utility.parseWeather(MainActivity.this, response);
+				if(result){
+					runOnUiThread(new Runnable() {
+						
+						@Override
+						public void run() {
+							// TODO Auto-generated method stub
+							showWeather();
+						}
+					});
+				}
+					
 			}
 			
 			@Override
@@ -118,54 +170,21 @@ public class MainActivity extends Activity  {
 		});
 	}
 	
+	private void showWeather() {
+		SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+		cloundView.setText(pref.getString("tdClound", ""));
+		cityNameView.setText(pref.getString("cityName", ""));
+		tempView.setText(String.valueOf(pref.getInt("tdAver", 20)));
+		windView.setText("风："+pref.getString("tdWind", ""));
+		String todayForcaString = "今天  "+ pref.getString("tdMax", "") +"/"+pref.getString("tdMin", "") +" C\n"+pref.getString("tdWind", "");
+		todayView.setText(todayForcaString);
+		
+		String tomorowForcastString ="明天  "+ pref.getString("tmMax","") +"/"+pref.getString("tmMin", "") +" C\n"+pref.getString("tmWind", "");
+		tomorowView.setText(tomorowForcastString);
+		Intent intent = new Intent(this,AutoUpdateService.class);
+		startService(intent);
+	}
 	
-	 
-	private void parseWeatherData(String weatherData){
-		  try {
-			JSONObject jsonObject1 = new JSONObject(weatherData);
-			JSONArray jsonArray = jsonObject1.getJSONArray("HeWeather data service 3.0");
-			JSONObject weatherJsonObject = (JSONObject) jsonArray.get(0);
-			JSONObject cityJsonObject = weatherJsonObject.getJSONObject("basic");
-			final String cityString = cityJsonObject.getString("city");
-			Log.d("listenString", "city="+cityString);
-			//不能在非UI线程直接更新UI线程的信息
-			//cityNameView.setText(cityString);
-			 
-			JSONArray dailyForecastJsonArray = weatherJsonObject.getJSONArray("daily_forecast");
-			JSONObject todayJsonObject = dailyForecastJsonArray.getJSONObject(0);
-			JSONObject secondDayJsonObject = dailyForecastJsonArray.getJSONObject(1); 
-			
-			JSONObject condJsonObject1 = todayJsonObject.getJSONObject("cond");
-			JSONObject tempJsonObject = todayJsonObject.getJSONObject("tmp");
-			JSONObject windJsonObject = todayJsonObject.getJSONObject("wind");
-			final String cloudString1 = condJsonObject1.getString("txt_d");
-			final String todayMaxTemp = tempJsonObject.getString("max");
-			final String todayMinTemp = tempJsonObject.getString("min"); 
-			final String wind = windJsonObject.getString("sc");
-			final int averTemp = (Integer.parseInt(todayMaxTemp) + Integer.parseInt(todayMinTemp))/2;
-			
-			if(!TextUtils.isEmpty(weatherData)){
-				runOnUiThread(new Runnable() {
-					
-					@Override
-					public void run() {
-						// TODO Auto-generated method stub
-						cloundView.setText(cloudString1);
-						cityNameView.setText(cityString);
-						tempView.setText(String.valueOf(averTemp));
-						windView.setText("风："+wind);
-						String todayForcaString = "今天  "+ todayMaxTemp +"/"+todayMinTemp +"C\n"+wind;
-						todayView.setText(todayForcaString); 
-					}
-				});
-			}
-			Log.d("listenString", "cloudString "+cloudString1 +"\ttodayMaxTemp "+todayMaxTemp+"\ttodayMinTemp "+todayMinTemp+"\twind "+wind);
-			
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-}
 	 
 
 }
